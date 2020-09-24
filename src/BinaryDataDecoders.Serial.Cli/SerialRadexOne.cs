@@ -43,85 +43,84 @@ namespace BinaryDataDecoders.Serial.Cli
                 return Task.FromResult(0);
             });
 
-            var ports = SerialPort.GetPortNames().OrderBy(s => s);
-            foreach (var port in ports)
-                Console.WriteLine(port);
+            var portNames = SerialPort.GetPortNames().OrderBy(s => s);
+            foreach (var portName in portNames)
+                Console.WriteLine(portName);
 
-            Console.WriteLine($"Enter Port: (Default { ports.FirstOrDefault()})");
-            var portName = Console.ReadLine();
-            var serialPort = new PortProvider().GetRadexOnePort(string.IsNullOrWhiteSpace(portName) ? ports.FirstOrDefault() : portName);
+            Console.WriteLine($"Enter Port: (Default { portNames.FirstOrDefault()})");
+            var portNameInput = Console.ReadLine();
+            var serialPort = new PortProvider().GetRadexOnePort(string.IsNullOrWhiteSpace(portNameInput) ? portNames.FirstOrDefault() : portNameInput);
 
-            using (var port = serialPort)
-            using (var cts = new CancellationTokenSource())
-            {
-                port.Open();
+            using var port = serialPort;
+            using var cts = new CancellationTokenSource();
 
-                Console.Write("Enter to exit");
+            port.Open();
 
-                Task.WaitAll(
-                  Task.Run(async () => await Program.ReadLineAsync().ContinueWith(t => cts.Cancel(false))),
-                  Task.Run(async () =>
+            Console.Write("Enter to exit");
+
+            Task.WaitAll(
+              Task.Run(async () => await Program.ReadLineAsync().ContinueWith(t => cts.Cancel(false))),
+              Task.Run(async () =>
+              {
+                  while (!cts.IsCancellationRequested)
                   {
-                      while (!cts.IsCancellationRequested)
+                      try
                       {
-                          try
-                          {
-                              await port.BaseStream.Follow().With(segmenter).RunAsync(cts.Token);
-                              cts.Cancel(true);
-                          }
-                          catch (Exception ex)
-                          {
-                              Console.Error.WriteLine(ex.Message);
-                          }
+                          await port.BaseStream.Follow().With(segmenter).RunAsync(cts.Token);
+                          cts.Cancel(true);
                       }
-                  }),
-                  Task.Run(async () =>
+                      catch (Exception ex)
+                      {
+                          Console.Error.WriteLine(ex.Message);
+                      }
+                  }
+              }),
+              Task.Run(async () =>
+              {
+                  ushort x = 0;
+                  while (!cts.IsCancellationRequested)
                   {
-                      ushort x = 0;
-                      while (!cts.IsCancellationRequested)
+                      x++;
+                      try
                       {
-                          x++;
-                          try
+                          IRadexObject requestObject = (x % 10) switch
                           {
-                              IRadexObject requestObject = (x % 10) switch
-                              {
-                                  8 => new ReadSettingsRequest(x),
+                              8 => new ReadSettingsRequest(x),
 
-                                  1 => new ReadSerialNumberRequest(x),
-                                  2 => new ReadSerialNumberRequest(x),
+                              1 => new ReadSerialNumberRequest(x),
+                              2 => new ReadSerialNumberRequest(x),
 
-                                  3 => new DevicePing(x),
-                                  0 => new DevicePing(x),
+                              3 => new DevicePing(x),
+                              0 => new DevicePing(x),
 
-                                  //4 => new WriteSettingsRequest(x, AlarmSettings.Audio, 30),
-                                  //5 => new WriteSettingsRequest(x, AlarmSettings.Audio, 30),
-                                  //6 => new WriteSettingsRequest(x, AlarmSettings.Audio, 30),
+                              //4 => new WriteSettingsRequest(x, AlarmSettings.Audio, 30),
+                              //5 => new WriteSettingsRequest(x, AlarmSettings.Audio, 30),
+                              //6 => new WriteSettingsRequest(x, AlarmSettings.Audio, 30),
 
-                                  _ => new ReadValuesRequest(x)
-                              };
-                              var requestBuffer = new byte[Marshal.SizeOf(requestObject)];
-                              IntPtr ptr = Marshal.AllocHGlobal(requestBuffer.Length);
-                              Marshal.StructureToPtr(requestObject, ptr, true);
-                              Marshal.Copy(ptr, requestBuffer, 0, requestBuffer.Length);
-                              Marshal.FreeHGlobal(ptr);
+                              _ => new ReadValuesRequest(x)
+                          };
+                          var requestBuffer = new byte[Marshal.SizeOf(requestObject)];
+                          IntPtr ptr = Marshal.AllocHGlobal(requestBuffer.Length);
+                          Marshal.StructureToPtr(requestObject, ptr, true);
+                          Marshal.Copy(ptr, requestBuffer, 0, requestBuffer.Length);
+                          Marshal.FreeHGlobal(ptr);
 
-                              var hex = requestBuffer.ToHexString();
+                          var hex = requestBuffer.ToHexString();
 
-                              //7BFF 2000 _600 1800 ____ 4600 __08 _C00 F3F7
-                              await port.BaseStream.WriteAsync(requestBuffer, 0, requestBuffer.Length, cts.Token);
-                          }
-                          catch (Exception ex)
-                          {
-                              Console.Error.WriteLine(ex.Message);
-                          }
-                          if (!cts.IsCancellationRequested)
-                          {
-                              await Task.Delay(1000);
-                          }
+                          //7BFF 2000 _600 1800 ____ 4600 __08 _C00 F3F7
+                          await port.BaseStream.WriteAsync(requestBuffer, 0, requestBuffer.Length, cts.Token);
                       }
-                  })
-                  );
-            }
+                      catch (Exception ex)
+                      {
+                          Console.Error.WriteLine(ex.Message);
+                      }
+                      if (!cts.IsCancellationRequested)
+                      {
+                          await Task.Delay(1000);
+                      }
+                  }
+              })
+              );
         }
     }
 }
