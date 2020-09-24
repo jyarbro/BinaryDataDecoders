@@ -2,8 +2,8 @@
 
 namespace BinaryDataDecoders.Quarta.RadexOne
 {
-    [StructLayout(LayoutKind.Explicit, Size = 18)]
-    public struct WriteSettingsResponse : IRadexObject
+    [StructLayout(LayoutKind.Explicit)]
+    public struct ResetAccumulatedResponse : IRadexObject
     {
         [FieldOffset(0)]
         public ushort Prefix;
@@ -23,7 +23,7 @@ namespace BinaryDataDecoders.Quarta.RadexOne
 
         public override string ToString()
         {
-            return $"Write Settings:\t({PacketNumber}:0x{PacketNumber:X2})";
+            return $"Reset Accumulated:\t({PacketNumber}:0x{PacketNumber:X2})";
         }
     }
 }

@@ -3,9 +3,9 @@
 namespace BinaryDataDecoders.Quarta.RadexOne
 {
     [StructLayout(LayoutKind.Explicit)]
-    public struct ReadSerialNumberRequest : IRadexObject
+    public struct ResetAccumulatedRequest : IRadexObject
     {
-        public ReadSerialNumberRequest(uint packetNumber)
+        public ResetAccumulatedRequest(uint packetNumber)
         {
             Prefix = 0xff7b;
             Command = 0x0020;
@@ -18,9 +18,8 @@ namespace BinaryDataDecoders.Quarta.RadexOne
                 ((PacketNumber & 0xffff0000) >> 16) +
                 (PacketNumber & 0xffff)
                 ) % 65535)) & 0xffff);
-
-            SubCommand = 0x0001;
-            Reserved1 = 0x000c;
+            SubCommand = 0x0803;
+            Reserved1 = 0x0001;
             CheckSum1 = (ushort)((0xffff - ((SubCommand + Reserved1) % 65535)) & 0xffff);
         }
 
